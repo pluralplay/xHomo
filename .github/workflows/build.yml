@@ -329,7 +329,10 @@ jobs:
       run: |
         echo ${VERSION} > version.txt
       shell: bash
-
+    - name: Generate checksum
+      run: |
+        find . -name "mihomo*" -type f -not -path "*/\.*" | sort | xargs sha256sum > checksums.txt
+      shell: bash
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -340,6 +343,7 @@ jobs:
           mihomo*.rpm
           mihomo*.zip
           version.txt
+          checksums.txt
 
   Upload-Prerelease:
     permissions: write-all
