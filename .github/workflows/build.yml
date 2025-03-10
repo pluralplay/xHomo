@@ -329,10 +329,6 @@ jobs:
       run: |
         echo ${VERSION} > version.txt
       shell: bash
-    - name: Generate checksum
-      run: |
-        find . -name "mihomo*" -type f -not -path "*/\.*" | sort | xargs sha256sum > checksums.txt
-      shell: bash
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -356,6 +352,13 @@ jobs:
       with:
         path: bin/
         merge-multiple: true
+
+    - name: Calculate checksums
+      run: |
+        cd bin/
+        find . -type f -not -name "checksums.*" -not -name "version.txt" | sort | xargs sha256sum > checksums.txt
+        cat checksums.txt
+      shell: bash
 
     - name: Delete current release assets
       uses: 8Mi-Tech/delete-release-assets-action@main
