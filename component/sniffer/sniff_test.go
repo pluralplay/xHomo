@@ -7,63 +7,72 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/transport/socks5"
 	"github.com/stretchr/testify/assert"
 )
 
-type emptySender struct {
+type fakeSender struct {
 	resultCh chan *constant.Metadata
 }
 
-var _ constant.PacketSender = (*emptySender)(nil)
+var _ constant.PacketSender = (*fakeSender)(nil)
 
-func (e *emptySender) Send(constant.PacketAdapter) {}
+func (e *fakeSender) Send(packet constant.PacketAdapter) {
+	// Ensure that the wrapper's Send can correctly handle the situation where the packet is directly discarded.
+	packet.Drop()
+}
 
-func (e *emptySender) Process(constant.PacketConn, constant.WriteBackProxy) {
+func (e *fakeSender) Process(constant.PacketConn, constant.WriteBackProxy) {
 	panic("not implemented")
 }
 
-func (e *emptySender) ResolveUDP(metadata *constant.Metadata) error {
+func (e *fakeSender) ResolveUDP(metadata *constant.Metadata) error {
 	e.resultCh <- metadata
 	return nil
 }
 
-func (e *emptySender) Close() {
+func (e *fakeSender) Close() {
 	panic("not implemented")
 }
 
-type emptyUDPPacket struct {
-	data []byte
+type fakeUDPPacket struct {
+	data  []byte
+	data2 []byte // backup
 }
 
-func (s *emptyUDPPacket) InAddr() net.Addr {
-	return net.UDPAddrFromAddrPort(netip.AddrPortFrom(netip.IPv4Unspecified().Unmap(), 0))
+func (s *fakeUDPPacket) InAddr() net.Addr {
+	return net.UDPAddrFromAddrPort(netip.AddrPortFrom(netip.IPv4Unspecified(), 0))
 }
 
-func (s *emptyUDPPacket) LocalAddr() net.Addr {
-	return net.UDPAddrFromAddrPort(netip.AddrPortFrom(netip.IPv4Unspecified().Unmap(), 0))
+func (s *fakeUDPPacket) LocalAddr() net.Addr {
+	return net.UDPAddrFromAddrPort(netip.AddrPortFrom(netip.IPv4Unspecified(), 0))
 }
 
-func (s *emptyUDPPacket) Data() []byte {
+func (s *fakeUDPPacket) Data() []byte {
 	return s.data
 }
 
-func (s *emptyUDPPacket) WriteBack(b []byte, addr net.Addr) (n int, err error) {
+func (s *fakeUDPPacket) WriteBack(b []byte, addr net.Addr) (n int, err error) {
 	return 0, net.ErrClosed
 }
 
-func (s *emptyUDPPacket) Drop() {
+func (s *fakeUDPPacket) Drop() {
+	for i := range s.data {
+		if s.data[i] != s.data2[i] { // ensure input data not changed
+			panic("data has been changed!")
+		}
+		s.data[i] = 0 // forcing data to become illegal
+	}
 	s.data = nil
 }
 
-var _ constant.UDPPacket = (*emptyUDPPacket)(nil)
+var _ constant.UDPPacket = (*fakeUDPPacket)(nil)
 
 func asPacket(data string) constant.PacketAdapter {
 	pktData, _ := hex.DecodeString(data)
 
-	pkt, meta := inbound.NewPacket(socks5.Addr([]byte{1, 0, 0, 0, 0, 0, 0}), &emptyUDPPacket{data: pktData}, constant.INNER)
+	meta := &constant.Metadata{}
+	pkt := &fakeUDPPacket{data: pktData, data2: bytes.Clone(pktData)}
 	pktAdp := constant.NewPacketAdapter(pkt, meta)
 
 	return pktAdp
@@ -76,7 +85,7 @@ func testQuicSniffer(data []string, async bool) (string, error) {
 	}
 
 	resultCh := make(chan *constant.Metadata, 1)
-	emptySender := &emptySender{resultCh: resultCh}
+	emptySender := &fakeSender{resultCh: resultCh}
 
 	sender := q.WrapperSender(emptySender, true)
 
@@ -90,11 +99,9 @@ func testQuicSniffer(data []string, async bool) (string, error) {
 
 	for _, d := range data {
 		if async {
-			go func(d string) {
-				sender.Send(asPacket((d)))
-			}(d)
+			go sender.Send(asPacket(d))
 		} else {
-			sender.Send(asPacket((d)))
+			sender.Send(asPacket(d))
 		}
 	}
 
