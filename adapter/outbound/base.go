@@ -281,7 +281,7 @@ func newPacketConn(pc net.PacketConn, a C.ProxyAdapter) C.PacketConn {
 	epc := N.NewEnhancePacketConn(pc)
 	if _, ok := pc.(syscall.Conn); !ok { // exclusion system conn like *net.UDPConn
 		epc = N.NewDeadlineEnhancePacketConn(epc) // most conn from outbound can't handle readDeadline correctly
-		epc = N.NewRefPacketConn(epc, a)          //  add ref for autoCloseProxyAdapter
+		epc = N.NewRefPacketConn(epc, a)          // add ref for autoCloseProxyAdapter
 	}
 	return &packetConn{epc, []string{a.Name()}, a.Name(), utils.NewUUIDV4().String(), parseRemoteDestination(a.Addr())}
 }
