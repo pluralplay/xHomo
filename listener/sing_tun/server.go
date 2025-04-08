@@ -212,12 +212,20 @@ func New(options LC.Tun, tunnel C.Tunnel, additions ...inbound.Addition) (l *Lis
 			return nil, E.Cause(err, "parse exclude_uid_range")
 		}
 	}
-	excludePort := uidToRange(options.ExcludePort)
-	if len(options.ExcludePortRange) > 0 {
+	excludeSrcPort := uidToRange(options.ExcludeSrcPort)
+	if len(options.ExcludeSrcPortRange) > 0 {
 		var err error
-		excludePort, err = parseRange(excludePort, options.ExcludePortRange)
+		excludeSrcPort, err = parseRange(excludeSrcPort, options.ExcludeSrcPortRange)
 		if err != nil {
-			return nil, E.Cause(err, "parse exclude_port_range")
+			return nil, E.Cause(err, "parse exclude_src_port_range")
+		}
+	}
+	excludeDstPort := uidToRange(options.ExcludeDstPort)
+	if len(options.ExcludeDstPortRange) > 0 {
+		var err error
+		excludeDstPort, err = parseRange(excludeDstPort, options.ExcludeDstPortRange)
+		if err != nil {
+			return nil, E.Cause(err, "parse exclude_dst_port_range")
 		}
 	}
 
@@ -348,7 +356,8 @@ func New(options LC.Tun, tunnel C.Tunnel, additions ...inbound.Addition) (l *Lis
 		ExcludeInterface:         options.ExcludeInterface,
 		IncludeUID:               includeUID,
 		ExcludeUID:               excludeUID,
-		ExcludePort:              excludePort,
+		ExcludeSrcPort:           excludeSrcPort,
+		ExcludeDstPort:           excludeDstPort,
 		IncludeAndroidUser:       options.IncludeAndroidUser,
 		IncludePackage:           options.IncludePackage,
 		ExcludePackage:           options.ExcludePackage,

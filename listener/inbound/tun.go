@@ -39,8 +39,10 @@ type TunOption struct {
 	IncludeUIDRange        []string `inbound:"include-uid-range,omitempty"`
 	ExcludeUID             []uint32 `inbound:"exclude-uid,omitempty"`
 	ExcludeUIDRange        []string `inbound:"exclude-uid-range,omitempty"`
-	ExcludePort            []uint16 `yaml:"exclude-port" json:"exclude-port,omitempty"`
-	ExcludePortRange       []string `yaml:"exclude-port-range" json:"exclude-port-range,omitempty"`
+	ExcludeSrcPort         []uint16 `inbound:"exclude-src-port,omitempty"`
+	ExcludeSrcPortRange    []string `inbound:"exclude-src-port-range,omitempty"`
+	ExcludeDstPort         []uint16 `inbound:"exclude-dst-port,omitempty"`
+	ExcludeDstPortRange    []string `inbound:"exclude-dst-port-range,omitempty"`
 	IncludeAndroidUser     []int    `inbound:"include-android-user,omitempty"`
 	IncludePackage         []string `inbound:"include-package,omitempty"`
 	ExcludePackage         []string `inbound:"exclude-package,omitempty"`
@@ -139,8 +141,10 @@ func NewTun(options *TunOption) (*Tun, error) {
 			IncludeUIDRange:        options.IncludeUIDRange,
 			ExcludeUID:             options.ExcludeUID,
 			ExcludeUIDRange:        options.ExcludeUIDRange,
-			ExcludePort:            options.ExcludePort,
-			ExcludePortRange:       options.ExcludePortRange,
+			ExcludeSrcPort:         options.ExcludeSrcPort,
+			ExcludeSrcPortRange:    options.ExcludeSrcPortRange,
+			ExcludeDstPort:         options.ExcludeDstPort,
+			ExcludeDstPortRange:    options.ExcludeDstPortRange,
 			IncludeAndroidUser:     options.IncludeAndroidUser,
 			IncludePackage:         options.IncludePackage,
 			ExcludePackage:         options.ExcludePackage,
