@@ -3,30 +3,16 @@ package outbound
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/netip"
 	"regexp"
 	"strconv"
-	"sync"
 
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/transport/socks5"
 )
-
-var (
-	globalClientSessionCache tls.ClientSessionCache
-	once                     sync.Once
-)
-
-func getClientSessionCache() tls.ClientSessionCache {
-	once.Do(func() {
-		globalClientSessionCache = tls.NewLRUClientSessionCache(128)
-	})
-	return globalClientSessionCache
-}
 
 func serializesSocksAddr(metadata *C.Metadata) []byte {
 	var buf [][]byte
@@ -49,67 +35,21 @@ func serializesSocksAddr(metadata *C.Metadata) []byte {
 	return bytes.Join(buf, nil)
 }
 
-func resolveUDPAddr(ctx context.Context, network, address string) (*net.UDPAddr, error) {
-	host, port, err := net.SplitHostPort(address)
-	if err != nil {
-		return nil, err
-	}
-
-	ip, err := resolver.ResolveIPWithResolver(ctx, host, resolver.ProxyServerHostResolver)
-	if err != nil {
-		return nil, err
-	}
-	return net.ResolveUDPAddr(network, net.JoinHostPort(ip.String(), port))
-}
-
-func resolveUDPAddrWithPrefer(ctx context.Context, network, address string, prefer C.DNSPrefer) (*net.UDPAddr, error) {
+func resolveUDPAddr(ctx context.Context, network, address string, prefer C.DNSPrefer) (*net.UDPAddr, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
 	}
 	var ip netip.Addr
-	var fallback netip.Addr
 	switch prefer {
 	case C.IPv4Only:
 		ip, err = resolver.ResolveIPv4WithResolver(ctx, host, resolver.ProxyServerHostResolver)
 	case C.IPv6Only:
 		ip, err = resolver.ResolveIPv6WithResolver(ctx, host, resolver.ProxyServerHostResolver)
 	case C.IPv6Prefer:
-		var ips []netip.Addr
-		ips, err = resolver.LookupIPWithResolver(ctx, host, resolver.ProxyServerHostResolver)
-		if err == nil {
-			for _, addr := range ips {
-				if addr.Is6() {
-					ip = addr
-					break
-				} else {
-					if !fallback.IsValid() {
-						fallback = addr
-					}
-				}
-			}
-		}
+		ip, err = resolver.ResolveIPPrefer6WithResolver(ctx, host, resolver.ProxyServerHostResolver)
 	default:
-		// C.IPv4Prefer, C.DualStack and other
-		var ips []netip.Addr
-		ips, err = resolver.LookupIPWithResolver(ctx, host, resolver.ProxyServerHostResolver)
-		if err == nil {
-			for _, addr := range ips {
-				if addr.Is4() {
-					ip = addr
-					break
-				} else {
-					if !fallback.IsValid() {
-						fallback = addr
-					}
-				}
-			}
-
-		}
-	}
-
-	if !ip.IsValid() && fallback.IsValid() {
-		ip = fallback
+		ip, err = resolver.ResolveIPWithResolver(ctx, host, resolver.ProxyServerHostResolver)
 	}
 
 	if err != nil {
