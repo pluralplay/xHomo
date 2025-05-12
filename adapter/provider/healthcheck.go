@@ -43,13 +43,14 @@ type HealthCheck struct {
 }
 
 func (hc *HealthCheck) process() {
-	if hc.started.Load() {
+	if !hc.started.CompareAndSwap(false, true) {
 		log.Warnln("Skip start health check timer due to it's started")
 		return
 	}
+	defer hc.started.Store(false)
 
 	ticker := time.NewTicker(hc.interval)
-	hc.start()
+	go hc.check()
 	for {
 		select {
 		case <-ticker.C:
@@ -62,7 +63,6 @@ func (hc *HealthCheck) process() {
 			}
 		case <-hc.ctx.Done():
 			ticker.Stop()
-			hc.stop()
 			return
 		}
 	}
@@ -129,14 +129,6 @@ func (hc *HealthCheck) auto() bool {
 
 func (hc *HealthCheck) touch() {
 	hc.lastTouch.Store(time.Now())
-}
-
-func (hc *HealthCheck) start() {
-	hc.started.Store(true)
-}
-
-func (hc *HealthCheck) stop() {
-	hc.started.Store(false)
 }
 
 func (hc *HealthCheck) check() {
