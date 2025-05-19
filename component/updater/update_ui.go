@@ -221,7 +221,7 @@ func unzip(src, dest string) (string, error) {
 			fpath = filepath.Join(extractedFolder, f.Name)
 		}
 
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+		if !inDest(fpath, dest) {
 			return "", fmt.Errorf("invalid file path: %s", fpath)
 		}
 		info := f.FileInfo()
@@ -344,7 +344,7 @@ func untgz(src, dest string) (string, error) {
 			fpath = filepath.Join(extractedFolder, cleanTarPath(header.Name))
 		}
 
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+		if !inDest(fpath, dest) {
 			return "", fmt.Errorf("invalid file path: %s", fpath)
 		}
 
@@ -420,4 +420,13 @@ func cleanup(root string) error {
 		}
 		return nil
 	})
+}
+
+func inDest(fpath, dest string) bool {
+	if rel, err := filepath.Rel(dest, fpath); err == nil {
+		if filepath.IsLocal(rel) {
+			return true
+		}
+	}
+	return false
 }
