@@ -224,9 +224,13 @@ func unzip(src, dest string) (string, error) {
 		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
 			return "", fmt.Errorf("invalid file path: %s", fpath)
 		}
-		if f.FileInfo().IsDir() {
+		info := f.FileInfo()
+		if info.IsDir() {
 			os.MkdirAll(fpath, os.ModePerm)
 			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			continue // disallow symlink
 		}
 		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 			return "", err
