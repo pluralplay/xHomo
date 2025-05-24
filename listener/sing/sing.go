@@ -16,6 +16,7 @@ import (
 
 	mux "github.com/metacubex/sing-mux"
 	vmess "github.com/metacubex/sing-vmess"
+	"github.com/metacubex/sing/common"
 	"github.com/metacubex/sing/common/buf"
 	"github.com/metacubex/sing/common/bufio"
 	"github.com/metacubex/sing/common/bufio/deadline"
@@ -191,6 +192,10 @@ func (h *ListenerHandler) NewPacketConnection(ctx context.Context, conn network.
 	return nil
 }
 
+type localAddr interface {
+	LocalAddr() net.Addr
+}
+
 func (h *ListenerHandler) NewPacket(ctx context.Context, key netip.AddrPort, buffer *buf.Buffer, metadata M.Metadata, init func(natConn network.PacketConn) network.PacketWriter) {
 	writer := bufio.NewNetPacketWriter(init(nil))
 	mutex := sync.Mutex{}
@@ -198,8 +203,12 @@ func (h *ListenerHandler) NewPacket(ctx context.Context, key netip.AddrPort, buf
 		writer: &writer,
 		mutex:  &mutex,
 		rAddr:  metadata.Source.UDPAddr(),
-		lAddr:  metadata.Source.UDPAddr(), // tun does not have real inAddr
 		buff:   buffer,
+	}
+	if conn, ok := common.Cast[localAddr](writer); ok {
+		cPacket.rAddr = conn.LocalAddr()
+	} else {
+		cPacket.rAddr = metadata.Source.UDPAddr() // tun does not have real inAddr
 	}
 	h.handlePacket(ctx, cPacket, metadata.Source, metadata.Destination)
 }
