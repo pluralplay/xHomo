@@ -101,9 +101,9 @@ func transform(servers []NameServer, resolver *Resolver) []dnsClient {
 		case "rcode":
 			c = newRCodeClient(s.Addr)
 		case "quic":
-			c = newDoQ(s.Addr, resolver, s.ProxyAdapter, s.ProxyName)
+			c = newDoQ(s.Addr, resolver, s.Params, s.ProxyAdapter, s.ProxyName)
 		default:
-			c = newClient(s.Addr, resolver, s.Net, s.ProxyAdapter, s.ProxyName)
+			c = newClient(s.Addr, resolver, s.Net, s.Params, s.ProxyAdapter, s.ProxyName)
 		}
 
 		c = warpClientWithEdns0Subnet(c, s.Params)

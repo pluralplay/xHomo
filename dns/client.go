@@ -108,9 +108,9 @@ func (c *client) ExchangeContext(ctx context.Context, m *D.Msg) (*D.Msg, error) 
 
 func (c *client) ResetConnection() {}
 
-func newClient(addr string, resolver *Resolver, netType string, proxyAdapter C.ProxyAdapter, proxyName string) *client {
+func newClient(addr string, resolver *Resolver, netType string, params map[string]string, proxyAdapter C.ProxyAdapter, proxyName string) *client {
 	host, port, _ := net.SplitHostPort(addr)
-	return &client{
+	c := &client{
 		Client: &D.Client{
 			Net: netType,
 			TLSConfig: &tls.Config{
@@ -123,4 +123,8 @@ func newClient(addr string, resolver *Resolver, netType string, proxyAdapter C.P
 		host:   host,
 		dialer: newDNSDialer(resolver, proxyAdapter, proxyName),
 	}
+	if params["skip-cert-verify"] == "true" {
+		c.TLSConfig.InsecureSkipVerify = true
+	}
+	return c
 }
