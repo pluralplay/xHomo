@@ -106,11 +106,7 @@ func transform(servers []NameServer, resolver *Resolver) []dnsClient {
 			ret = append(ret, newRCodeClient(s.Addr))
 			continue
 		case "quic":
-			if doq, err := newDoQ(resolver, s.Addr, s.ProxyAdapter, s.ProxyName); err == nil {
-				ret = append(ret, doq)
-			} else {
-				log.Fatalln("DoQ format error: %v", err)
-			}
+			ret = append(ret, newDoQ(s.Addr, resolver, s.ProxyAdapter, s.ProxyName))
 			continue
 		}
 

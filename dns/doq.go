@@ -69,7 +69,7 @@ type dnsOverQUIC struct {
 var _ dnsClient = (*dnsOverQUIC)(nil)
 
 // newDoQ returns the DNS-over-QUIC Upstream.
-func newDoQ(resolver *Resolver, addr string, proxyAdapter C.ProxyAdapter, proxyName string) (dnsClient, error) {
+func newDoQ(addr string, resolver *Resolver, proxyAdapter C.ProxyAdapter, proxyName string) *dnsOverQUIC {
 	doq := &dnsOverQUIC{
 		addr:   addr,
 		dialer: newDNSDialer(resolver, proxyAdapter, proxyName),
@@ -80,7 +80,7 @@ func newDoQ(resolver *Resolver, addr string, proxyAdapter C.ProxyAdapter, proxyN
 	}
 
 	runtime.SetFinalizer(doq, (*dnsOverQUIC).Close)
-	return doq, nil
+	return doq
 }
 
 // Address implements the Upstream interface for *dnsOverQUIC.
