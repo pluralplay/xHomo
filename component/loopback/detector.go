@@ -25,22 +25,19 @@ func init() {
 var ErrReject = errors.New("reject loopback connection")
 
 type Detector struct {
-	connMap       *xsync.Map[netip.AddrPort, struct{}]
-	packetConnMap *xsync.Map[uint16, struct{}]
+	connMap       xsync.Map[netip.AddrPort, struct{}]
+	packetConnMap xsync.Map[uint16, struct{}]
 }
 
 func NewDetector() *Detector {
 	if disableLoopBackDetector {
 		return nil
 	}
-	return &Detector{
-		connMap:       xsync.NewMap[netip.AddrPort, struct{}](),
-		packetConnMap: xsync.NewMap[uint16, struct{}](),
-	}
+	return &Detector{}
 }
 
 func (l *Detector) NewConn(conn C.Conn) C.Conn {
-	if l == nil || l.connMap == nil {
+	if l == nil {
 		return conn
 	}
 	metadata := C.Metadata{}
@@ -58,7 +55,7 @@ func (l *Detector) NewConn(conn C.Conn) C.Conn {
 }
 
 func (l *Detector) NewPacketConn(conn C.PacketConn) C.PacketConn {
-	if l == nil || l.packetConnMap == nil {
+	if l == nil {
 		return conn
 	}
 	metadata := C.Metadata{}
@@ -77,7 +74,7 @@ func (l *Detector) NewPacketConn(conn C.PacketConn) C.PacketConn {
 }
 
 func (l *Detector) CheckConn(metadata *C.Metadata) error {
-	if l == nil || l.connMap == nil {
+	if l == nil {
 		return nil
 	}
 	connAddr := metadata.SourceAddrPort()
@@ -91,7 +88,7 @@ func (l *Detector) CheckConn(metadata *C.Metadata) error {
 }
 
 func (l *Detector) CheckPacketConn(metadata *C.Metadata) error {
-	if l == nil || l.packetConnMap == nil {
+	if l == nil {
 		return nil
 	}
 	connAddr := metadata.SourceAddrPort()

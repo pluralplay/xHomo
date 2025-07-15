@@ -14,7 +14,6 @@ var DefaultManager *Manager
 
 func init() {
 	DefaultManager = &Manager{
-		connections:   xsync.NewMap[string, Tracker](),
 		uploadTemp:    atomic.NewInt64(0),
 		downloadTemp:  atomic.NewInt64(0),
 		uploadBlip:    atomic.NewInt64(0),
@@ -28,7 +27,7 @@ func init() {
 }
 
 type Manager struct {
-	connections   *xsync.Map[string, Tracker]
+	connections   xsync.Map[string, Tracker]
 	uploadTemp    atomic.Int64
 	downloadTemp  atomic.Int64
 	uploadBlip    atomic.Int64

@@ -35,7 +35,7 @@ type Proxy struct {
 	C.ProxyAdapter
 	alive   atomic.Bool
 	history *queue.Queue[C.DelayHistory]
-	extra   *xsync.Map[string, *internalProxyState]
+	extra   xsync.Map[string, *internalProxyState]
 }
 
 // Adapter implements C.Proxy
@@ -293,7 +293,7 @@ func NewProxy(adapter C.ProxyAdapter) *Proxy {
 		ProxyAdapter: adapter,
 		history:      queue.New[C.DelayHistory](defaultHistoriesNum),
 		alive:        atomic.NewBool(true),
-		extra:        xsync.NewMap[string, *internalProxyState]()}
+	}
 }
 
 func urlToMetadata(rawURL string) (addr C.Metadata, err error) {
