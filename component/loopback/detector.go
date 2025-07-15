@@ -8,11 +8,10 @@ import (
 	"strconv"
 
 	"github.com/metacubex/mihomo/common/callback"
+	"github.com/metacubex/mihomo/common/xsync"
 	"github.com/metacubex/mihomo/component/iface"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/constant/features"
-
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
 var disableLoopBackDetector, _ = strconv.ParseBool(os.Getenv("DISABLE_LOOPBACK_DETECTOR"))
@@ -26,8 +25,8 @@ func init() {
 var ErrReject = errors.New("reject loopback connection")
 
 type Detector struct {
-	connMap       *xsync.MapOf[netip.AddrPort, struct{}]
-	packetConnMap *xsync.MapOf[uint16, struct{}]
+	connMap       *xsync.Map[netip.AddrPort, struct{}]
+	packetConnMap *xsync.Map[uint16, struct{}]
 }
 
 func NewDetector() *Detector {
@@ -35,8 +34,8 @@ func NewDetector() *Detector {
 		return nil
 	}
 	return &Detector{
-		connMap:       xsync.NewMapOf[netip.AddrPort, struct{}](),
-		packetConnMap: xsync.NewMapOf[uint16, struct{}](),
+		connMap:       xsync.NewMap[netip.AddrPort, struct{}](),
+		packetConnMap: xsync.NewMap[uint16, struct{}](),
 	}
 }
 
