@@ -23,9 +23,9 @@ import (
 // modify from https://github.com/AdguardTeam/AdGuardHome/blob/595484e0b3fb4c457f9bb727a6b94faa78a66c5f/internal/updater/updater.go
 // Updater is the mihomo updater.
 var (
-	goarm           string
-	gomips          string
-	amd64Compatible string
+	goarm   string
+	gomips  string
+	goamd64 string
 
 	workDir string
 
@@ -46,8 +46,15 @@ var (
 )
 
 func init() {
-	if runtime.GOARCH == "amd64" && getGOAMD64level() < 3 {
-		amd64Compatible = "-compatible"
+	if runtime.GOARCH == "amd64" {
+		switch getGOAMD64level() {
+		case 1:
+			goamd64 = "-v1"
+		case 2:
+			goamd64 = "-v2"
+		case 3:
+			goamd64 = "-v3"
+		}
 	}
 	if !strings.HasPrefix(C.Version, "alpha") {
 		baseURL = "https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo"
@@ -137,11 +144,11 @@ func prepare(exePath string) (err error) {
 	backupDir = filepath.Join(workDir, "meta-backup")
 
 	if runtime.GOOS == "windows" {
-		updateExeName = "mihomo" + "-" + runtime.GOOS + "-" + runtime.GOARCH + amd64Compatible + ".exe"
+		updateExeName = "mihomo" + "-" + runtime.GOOS + "-" + runtime.GOARCH + goamd64 + ".exe"
 	} else if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
 		updateExeName = "mihomo-android-arm64-v8"
 	} else {
-		updateExeName = "mihomo" + "-" + runtime.GOOS + "-" + runtime.GOARCH + amd64Compatible
+		updateExeName = "mihomo" + "-" + runtime.GOOS + "-" + runtime.GOARCH + goamd64
 	}
 
 	log.Infoln("updateExeName: %s ", updateExeName)
@@ -451,7 +458,7 @@ func updateDownloadURL() {
 	} else if isMIPS(runtime.GOARCH) && gomips != "" {
 		middle = fmt.Sprintf("-%s-%s-%s-%s", runtime.GOOS, runtime.GOARCH, gomips, latestVersion)
 	} else {
-		middle = fmt.Sprintf("-%s-%s%s-%s", runtime.GOOS, runtime.GOARCH, amd64Compatible, latestVersion)
+		middle = fmt.Sprintf("-%s-%s%s-%s", runtime.GOOS, runtime.GOARCH, goamd64, latestVersion)
 	}
 
 	if runtime.GOOS == "windows" {
