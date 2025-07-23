@@ -18,8 +18,6 @@ import (
 	mihomoHttp "github.com/metacubex/mihomo/component/http"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
-
-	"github.com/klauspost/cpuid/v2"
 )
 
 // modify from https://github.com/AdguardTeam/AdGuardHome/blob/595484e0b3fb4c457f9bb727a6b94faa78a66c5f/internal/updater/updater.go
@@ -48,7 +46,7 @@ var (
 )
 
 func init() {
-	if runtime.GOARCH == "amd64" && cpuid.CPU.X64Level() < 3 {
+	if runtime.GOARCH == "amd64" && getGOAMD64level() < 3 {
 		amd64Compatible = "-compatible"
 	}
 	if !strings.HasPrefix(C.Version, "alpha") {
