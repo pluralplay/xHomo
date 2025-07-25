@@ -73,7 +73,7 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	_, err = os.Stat(currentExePath)
+	info, err := os.Stat(currentExePath)
 	if err != nil {
 		return fmt.Errorf("check currentExePath %q: %w", currentExePath, err)
 	}
@@ -145,6 +145,8 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 	if err != nil {
 		return fmt.Errorf("backuping: %w", err)
 	}
+
+	_ = os.Chmod(updateExePath, info.Mode())
 
 	err = u.replace(updateExePath, currentExePath)
 	if err != nil {
