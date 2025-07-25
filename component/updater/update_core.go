@@ -92,7 +92,8 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 	log.Infoln("current version %s, latest version %s", C.Version, latestVersion)
 
 	if latestVersion == C.Version {
-		return fmt.Errorf("update error: %s is the latest version", C.Version)
+		// don't change this output, some downstream dependencies on the upgrader's output fields
+		return fmt.Errorf("update error: already using latest version %s", C.Version)
 	}
 
 	defer func() {
