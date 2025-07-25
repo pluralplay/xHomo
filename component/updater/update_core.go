@@ -279,7 +279,7 @@ func (u *CoreUpdater) clean(updateDir string) {
 // Existing files are overwritten
 // All files are created inside outDir, subdirectories are not created
 // Return the output file name
-func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string) (string, error) {
+func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string) (outputName string, err error) {
 	f, err := os.Open(gzfile)
 	if err != nil {
 		return "", fmt.Errorf("os.Open(): %w", err)
@@ -311,14 +311,10 @@ func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string) (string, error) {
 		originalName = strings.TrimSuffix(originalName, ".gz")
 	}
 
-	outputName := filepath.Join(outDir, originalName)
+	outputName = filepath.Join(outDir, originalName)
 
 	// Create the output file
-	wc, err := os.OpenFile(
-		outputName,
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-		0o755,
-	)
+	wc, err := os.OpenFile(outputName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
 	if err != nil {
 		return "", fmt.Errorf("os.OpenFile(%s): %w", outputName, err)
 	}
@@ -343,7 +339,7 @@ func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string) (string, error) {
 // Existing files are overwritten
 // All files are created inside 'outDir', subdirectories are not created
 // Return the output file name
-func (u *CoreUpdater) zipFileUnpack(zipfile, outDir string) (string, error) {
+func (u *CoreUpdater) zipFileUnpack(zipfile, outDir string) (outputName string, err error) {
 	zrc, err := zip.OpenReader(zipfile)
 	if err != nil {
 		return "", fmt.Errorf("zip.OpenReader(): %w", err)
@@ -375,7 +371,7 @@ func (u *CoreUpdater) zipFileUnpack(zipfile, outDir string) (string, error) {
 	}()
 	fi := zf.FileInfo()
 	name := fi.Name()
-	outputName := filepath.Join(outDir, name)
+	outputName = filepath.Join(outDir, name)
 
 	if fi.IsDir() {
 		return "", fmt.Errorf("the target file is a directory")
@@ -402,14 +398,38 @@ func (u *CoreUpdater) zipFileUnpack(zipfile, outDir string) (string, error) {
 }
 
 // Copy file on disk
-func (u *CoreUpdater) copyFile(src, dst string) error {
-	d, e := os.ReadFile(src)
-	if e != nil {
-		return e
+func (u *CoreUpdater) copyFile(src, dst string) (err error) {
+	rc, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("os.Open(%s): %w", src, err)
 	}
-	e = os.WriteFile(dst, d, 0o644)
-	if e != nil {
-		return e
+
+	defer func() {
+		closeErr := rc.Close()
+		if closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	// Create the output file
+	// If the file does not exist, creates it with permissions perm (before umask);
+	// otherwise truncates it before writing, without changing permissions.
+	wc, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("os.OpenFile(%s): %w", dst, err)
 	}
+
+	defer func() {
+		closeErr := wc.Close()
+		if closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	_, err = io.Copy(wc, rc)
+	if err != nil {
+		return fmt.Errorf("io.Copy(): %w", err)
+	}
+
 	return nil
 }
