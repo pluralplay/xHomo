@@ -427,10 +427,15 @@ func (u *CoreUpdater) copyFile(src, dst string) (err error) {
 		}
 	}()
 
+	info, err := rc.Stat()
+	if err != nil {
+		return fmt.Errorf("rc.Stat(): %w", err)
+	}
+
 	// Create the output file
 	// If the file does not exist, creates it with permissions perm (before umask);
 	// otherwise truncates it before writing, without changing permissions.
-	wc, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	wc, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode())
 	if err != nil {
 		return fmt.Errorf("os.OpenFile(%s): %w", dst, err)
 	}
