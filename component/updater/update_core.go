@@ -194,13 +194,6 @@ func (u *CoreUpdater) download(updateDir, packagePath, packageURL string) (err e
 		}
 	}()
 
-	log.Debugln("updater: reading http body")
-	// This use of ReadAll is now safe, because we limited body's Reader.
-	body, err := io.ReadAll(io.LimitReader(resp.Body, MaxPackageFileSize))
-	if err != nil {
-		return fmt.Errorf("io.ReadAll() failed: %w", err)
-	}
-
 	log.Debugln("updateDir %s", updateDir)
 	err = os.Mkdir(updateDir, 0o755)
 	if err != nil {
@@ -208,10 +201,33 @@ func (u *CoreUpdater) download(updateDir, packagePath, packageURL string) (err e
 	}
 
 	log.Debugln("updater: saving package to file %s", packagePath)
-	err = os.WriteFile(packagePath, body, 0o644)
+	// Create the output file
+	wc, err := os.OpenFile(packagePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
 	if err != nil {
-		return fmt.Errorf("os.WriteFile() failed: %w", err)
+		return fmt.Errorf("os.OpenFile(%s): %w", packagePath, err)
 	}
+
+	defer func() {
+		closeErr := wc.Close()
+		if closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	log.Debugln("updater: reading http body")
+	// This use of io.Copy is now safe, because we limited body's Reader.
+	n, err := io.Copy(wc, io.LimitReader(resp.Body, MaxPackageFileSize))
+	if err != nil {
+		return fmt.Errorf("io.Copy(): %w", err)
+	}
+	if n == MaxPackageFileSize {
+		// Use whether n is equal to MaxPackageFileSize to determine whether the limit has been reached.
+		// It is also possible that the size of the downloaded file is exactly the same as the maximum limit,
+		// but we should not consider this too rare situation.
+		return fmt.Errorf("attempted to read more than %d bytes", MaxPackageFileSize)
+	}
+	log.Debugln("updater: downloaded package to file %s", packagePath)
+
 	return nil
 }
 
