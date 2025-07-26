@@ -73,7 +73,7 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	info, err := os.Stat(currentExePath)
+	_, err = os.Stat(currentExePath)
 	if err != nil {
 		return fmt.Errorf("check currentExePath %q: %w", currentExePath, err)
 	}
@@ -145,8 +145,6 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 	if err != nil {
 		return fmt.Errorf("backuping: %w", err)
 	}
-
-	_ = os.Chmod(updateExePath, info.Mode())
 
 	err = u.replace(updateExePath, currentExePath)
 	if err != nil {
@@ -253,12 +251,19 @@ func (u *CoreUpdater) unpack(updateDir, packagePath string) error {
 	return nil
 }
 
-// backup makes a backup of the current executable file
+// backup creates a backup of the current executable file.
 func (u *CoreUpdater) backup(currentExePath, backupExePath, backupDir string) (err error) {
 	log.Infoln("updater: backing up current ExecFile:%s to %s", currentExePath, backupExePath)
 	_ = os.Mkdir(backupDir, 0o755)
 
-	err = os.Rename(currentExePath, backupExePath)
+	// On Windows, since the running executable cannot be overwritten or deleted, it uses os.Rename to move the file to the backup path.
+	// On other platforms, it copies the file to the backup path, preserving the original file and its permissions.
+	// The backup directory is created if it does not exist.
+	if runtime.GOOS == "windows" {
+		err = os.Rename(currentExePath, backupExePath)
+	} else {
+		err = u.copyFile(currentExePath, backupExePath)
+	}
 	if err != nil {
 		return err
 	}
@@ -268,20 +273,15 @@ func (u *CoreUpdater) backup(currentExePath, backupExePath, backupDir string) (e
 
 // replace moves the current executable with the updated one
 func (u *CoreUpdater) replace(updateExePath, currentExePath string) error {
-	var err error
-
 	log.Infoln("replacing: %s to %s", updateExePath, currentExePath)
-	if runtime.GOOS == "windows" {
-		// rename fails with "File in use" error
-		err = u.copyFile(updateExePath, currentExePath)
-	} else {
-		err = os.Rename(updateExePath, currentExePath)
-	}
+
+	// Use copyFile to retain the original file attributes
+	err := u.copyFile(updateExePath, currentExePath)
 	if err != nil {
 		return err
 	}
 
-	log.Infoln("updater: renamed: %s to %s", updateExePath, currentExePath)
+	log.Infoln("updater: copy: %s to %s", updateExePath, currentExePath)
 
 	return nil
 }
