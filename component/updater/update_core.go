@@ -33,6 +33,11 @@ const (
 	MaxPackageFileSize = 32 * 1024 * 1024
 )
 
+const (
+	ReleaseChannel = "release"
+	AlphaChannel   = "alpha"
+)
+
 // CoreUpdater is the mihomo updater.
 // modify from https://github.com/AdguardTeam/AdGuardHome/blob/595484e0b3fb4c457f9bb727a6b94faa78a66c5f/internal/updater/updater.go
 type CoreUpdater struct {
@@ -69,7 +74,7 @@ func (u *CoreUpdater) CoreBaseName() string {
 	}
 }
 
-func (u *CoreUpdater) Update(currentExePath string) (err error) {
+func (u *CoreUpdater) Update(currentExePath string, channel string, force bool) (err error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
@@ -80,9 +85,17 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 
 	baseURL := baseAlphaURL
 	versionURL := versionAlphaURL
-	if !strings.HasPrefix(C.Version, "alpha") {
+	switch strings.ToLower(channel) {
+	case ReleaseChannel:
 		baseURL = baseReleaseURL
 		versionURL = versionReleaseURL
+	case AlphaChannel:
+		break
+	default: // auto
+		if !strings.HasPrefix(C.Version, "alpha") {
+			baseURL = baseReleaseURL
+			versionURL = versionReleaseURL
+		}
 	}
 
 	latestVersion, err := u.getLatestVersion(versionURL)
@@ -91,7 +104,7 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 	}
 	log.Infoln("current version %s, latest version %s", C.Version, latestVersion)
 
-	if latestVersion == C.Version {
+	if latestVersion == C.Version && !force {
 		// don't change this output, some downstream dependencies on the upgrader's output fields
 		return fmt.Errorf("update error: already using latest version %s", C.Version)
 	}
