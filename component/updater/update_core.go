@@ -73,7 +73,7 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	_, err = os.Stat(currentExePath)
+	info, err := os.Stat(currentExePath)
 	if err != nil {
 		return fmt.Errorf("check currentExePath %q: %w", currentExePath, err)
 	}
@@ -136,7 +136,7 @@ func (u *CoreUpdater) Update(currentExePath string) (err error) {
 		return fmt.Errorf("downloading: %w", err)
 	}
 
-	err = u.unpack(updateDir, packagePath)
+	err = u.unpack(updateDir, packagePath, info.Mode())
 	if err != nil {
 		return fmt.Errorf("unpacking: %w", err)
 	}
@@ -230,16 +230,16 @@ func (u *CoreUpdater) download(updateDir, packagePath, packageURL string) (err e
 }
 
 // unpack extracts the files from the downloaded archive.
-func (u *CoreUpdater) unpack(updateDir, packagePath string) error {
+func (u *CoreUpdater) unpack(updateDir, packagePath string, fileMode os.FileMode) error {
 	log.Infoln("updater: unpacking package")
 	if strings.HasSuffix(packagePath, ".zip") {
-		_, err := u.zipFileUnpack(packagePath, updateDir)
+		_, err := u.zipFileUnpack(packagePath, updateDir, fileMode)
 		if err != nil {
 			return fmt.Errorf(".zip unpack failed: %w", err)
 		}
 
 	} else if strings.HasSuffix(packagePath, ".gz") {
-		_, err := u.gzFileUnpack(packagePath, updateDir)
+		_, err := u.gzFileUnpack(packagePath, updateDir, fileMode)
 		if err != nil {
 			return fmt.Errorf(".gz unpack failed: %w", err)
 		}
@@ -295,7 +295,7 @@ func (u *CoreUpdater) clean(updateDir string) {
 // Existing files are overwritten
 // All files are created inside outDir, subdirectories are not created
 // Return the output file name
-func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string) (outputName string, err error) {
+func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string, fileMode os.FileMode) (outputName string, err error) {
 	f, err := os.Open(gzfile)
 	if err != nil {
 		return "", fmt.Errorf("os.Open(): %w", err)
@@ -330,7 +330,7 @@ func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string) (outputName string, er
 	outputName = filepath.Join(outDir, originalName)
 
 	// Create the output file
-	wc, err := os.OpenFile(outputName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
+	wc, err := os.OpenFile(outputName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode)
 	if err != nil {
 		return "", fmt.Errorf("os.OpenFile(%s): %w", outputName, err)
 	}
@@ -355,7 +355,7 @@ func (u *CoreUpdater) gzFileUnpack(gzfile, outDir string) (outputName string, er
 // Existing files are overwritten
 // All files are created inside 'outDir', subdirectories are not created
 // Return the output file name
-func (u *CoreUpdater) zipFileUnpack(zipfile, outDir string) (outputName string, err error) {
+func (u *CoreUpdater) zipFileUnpack(zipfile, outDir string, fileMode os.FileMode) (outputName string, err error) {
 	zrc, err := zip.OpenReader(zipfile)
 	if err != nil {
 		return "", fmt.Errorf("zip.OpenReader(): %w", err)
@@ -394,7 +394,7 @@ func (u *CoreUpdater) zipFileUnpack(zipfile, outDir string) (outputName string, 
 	}
 
 	var wc io.WriteCloser
-	wc, err = os.OpenFile(outputName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fi.Mode())
+	wc, err = os.OpenFile(outputName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode)
 	if err != nil {
 		return "", fmt.Errorf("os.OpenFile(): %w", err)
 	}
