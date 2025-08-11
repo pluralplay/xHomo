@@ -94,3 +94,12 @@ func FuzzMatch(f *testing.F) {
 		}
 	})
 }
+
+func BenchmarkMatch(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Match(
+			"r4.cdn-aa-wow-this-is-long-a1.video-yajusenpai1145141919810-oh-hell-yeah-this-is-also-very-long-and-sukka-the-fox-has-a-very-big-fluffy-fox-tail-ao-wu-ao-wu-regex-and-wildcard-both-might-have-deadly-back-tracing-issue-be-careful-or-use-linear-matching.com",
+			"*.cdn-*-*.video**.com",
+		)
+	}
+}
