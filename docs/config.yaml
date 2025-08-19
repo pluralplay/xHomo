@@ -933,6 +933,8 @@ proxies: # socks5
     password: password
     # 可以使用的值包括 MULTIPLEXING_OFF, MULTIPLEXING_LOW, MULTIPLEXING_MIDDLE, MULTIPLEXING_HIGH。其中 MULTIPLEXING_OFF 会关闭多路复用功能。默认值为 MULTIPLEXING_LOW。
     # multiplexing: MULTIPLEXING_LOW
+    # 如果想开启 0-RTT 握手，请设置为 HANDSHAKE_NO_WAIT，否则请设置为 HANDSHAKE_STANDARD。默认值为 HANDSHAKE_STANDARD
+    # handshake-mode: HANDSHAKE_STANDARD
 
   # anytls
   - name: anytls
