@@ -1477,6 +1477,7 @@ listeners:
     #  masquerade: http://127.0.0.1:8080	#作为反向代理
     #  masquerade: https://127.0.0.1:8080	#作为反向代理
 
+  # 注意，listeners中的tun仅提供给高级用户使用，普通用户应使用顶层配置中的tun
   - name: tun-in-1
     type: tun
     # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
