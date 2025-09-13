@@ -331,14 +331,16 @@ func (doq *dnsOverQUIC) openConnection(ctx context.Context) (conn *quic.Conn, er
 		return nil, err
 	}
 
-	tlsConfig, err := ca.GetTLSConfig(ca.Option{TLSConfig: &tls.Config{
-		ServerName:         host,
-		InsecureSkipVerify: doq.skipCertVerify,
-		NextProtos: []string{
-			NextProtoDQ,
+	tlsConfig, err := ca.GetTLSConfig(ca.Option{
+		TLSConfig: &tls.Config{
+			ServerName:         host,
+			InsecureSkipVerify: doq.skipCertVerify,
+			NextProtos: []string{
+				NextProtoDQ,
+			},
+			SessionTicketsDisabled: false,
 		},
-		SessionTicketsDisabled: false,
-	}})
+	})
 	if err != nil {
 		return nil, err
 	}

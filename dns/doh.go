@@ -397,11 +397,13 @@ func (doh *dnsOverHTTPS) createTransport(ctx context.Context) (t http.RoundTripp
 		return transport, nil
 	}
 
-	tlsConfig, err := ca.GetTLSConfig(ca.Option{TLSConfig: &tls.Config{
-		InsecureSkipVerify:     doh.skipCertVerify,
-		MinVersion:             tls.VersionTLS12,
-		SessionTicketsDisabled: false,
-	}})
+	tlsConfig, err := ca.GetTLSConfig(ca.Option{
+		TLSConfig: &tls.Config{
+			InsecureSkipVerify:     doh.skipCertVerify,
+			MinVersion:             tls.VersionTLS12,
+			SessionTicketsDisabled: false,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
