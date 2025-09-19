@@ -125,6 +125,8 @@ type HysteriaOption struct {
 	ECHOpts             ECHOptions `proxy:"ech-opts,omitempty"`
 	SkipCertVerify      bool       `proxy:"skip-cert-verify,omitempty"`
 	Fingerprint         string     `proxy:"fingerprint,omitempty"`
+	Certificate         string     `proxy:"certificate,omitempty"`
+	PrivateKey          string     `proxy:"private-key,omitempty"`
 	ALPN                []string   `proxy:"alpn,omitempty"`
 	ReceiveWindowConn   int        `proxy:"recv-window-conn,omitempty"`
 	ReceiveWindow       int        `proxy:"recv-window,omitempty"`
@@ -165,6 +167,8 @@ func NewHysteria(option HysteriaOption) (*Hysteria, error) {
 			MinVersion:         tls.VersionTLS13,
 		},
 		Fingerprint: option.Fingerprint,
+		Certificate: option.Certificate,
+		PrivateKey:  option.PrivateKey,
 	})
 	if err != nil {
 		return nil, err
