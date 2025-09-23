@@ -83,30 +83,37 @@ const (
 	ProcPidInfoSym = "proc_pidinfo"
 )
 
-var (
-	procPidInfo ProcPidInfoFunc
-)
+type dlFuncs struct {
+	lib *Library
 
-func registerFuncs() (*Library, error) {
+	procPidInfo ProcPidInfoFunc
+}
+
+func loadProcFuncs() (*dlFuncs, error) {
 	lib, err := NewLibrary(System)
 	if err != nil {
 		return nil, err
 	}
 
-	procPidInfo = GetFunc[ProcPidInfoFunc](lib, ProcPidInfoSym)
+	return &dlFuncs{
+		lib:         lib,
+		procPidInfo: GetFunc[ProcPidInfoFunc](lib, ProcPidInfoSym),
+	}, nil
+}
 
-	return lib, nil
+func (f *dlFuncs) Close() {
+	f.lib.Close()
 }
 
 func GetMemoryInfo(pid int32) (*MemoryInfoStat, error) {
-	lib, err := registerFuncs()
+	funcs, err := loadProcFuncs()
 	if err != nil {
 		return nil, err
 	}
-	defer lib.Close()
+	defer funcs.Close()
 
 	var ti ProcTaskInfo
-	procPidInfo(pid, PROC_PIDTASKINFO, 0, uintptr(unsafe.Pointer(&ti)), int32(unsafe.Sizeof(ti)))
+	funcs.procPidInfo(pid, PROC_PIDTASKINFO, 0, uintptr(unsafe.Pointer(&ti)), int32(unsafe.Sizeof(ti)))
 
 	ret := &MemoryInfoStat{
 		RSS: uint64(ti.Resident_size),

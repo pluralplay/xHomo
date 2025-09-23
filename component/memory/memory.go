@@ -1,5 +1,5 @@
 // Package memory return MemoryInfoStat
-// modify from https://github.com/shirou/gopsutil/tree/v4.25.1/process
+// modify from https://github.com/shirou/gopsutil/tree/v4.25.8/process
 package memory
 
 type MemoryInfoStat struct {
