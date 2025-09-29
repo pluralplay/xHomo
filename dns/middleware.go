@@ -20,7 +20,7 @@ type (
 	middleware func(next handler) handler
 )
 
-func withHosts(hosts R.Hosts, mapping *lru.LruCache[netip.Addr, string]) middleware {
+func withHosts(mapping *lru.LruCache[netip.Addr, string]) middleware {
 	return func(next handler) handler {
 		return func(ctx *context.DNSContext, r *D.Msg) (*D.Msg, error) {
 			q := r.Question[0]
@@ -36,7 +36,7 @@ func withHosts(hosts R.Hosts, mapping *lru.LruCache[netip.Addr, string]) middlew
 				rr.Target = domain + "."
 				resp.Answer = append([]D.RR{rr}, resp.Answer...)
 			}
-			record, ok := hosts.Search(host, q.Qtype != D.TypeA && q.Qtype != D.TypeAAAA)
+			record, ok := R.DefaultHosts.Search(host, q.Qtype != D.TypeA && q.Qtype != D.TypeAAAA)
 			if !ok {
 				if record != nil && record.IsDomain {
 					// replace request domain
@@ -221,8 +221,8 @@ func compose(middlewares []middleware, endpoint handler) handler {
 func NewHandler(resolver *Resolver, mapper *ResolverEnhancer) handler {
 	middlewares := []middleware{}
 
-	if resolver.hosts != nil {
-		middlewares = append(middlewares, withHosts(R.NewHosts(resolver.hosts), mapper.mapping))
+	if mapper.useHosts {
+		middlewares = append(middlewares, withHosts(mapper.mapping))
 	}
 
 	if mapper.mode == C.DNSFakeIP {
