@@ -916,11 +916,59 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 	slices.Sort(AllProxies)
 	slices.Sort(AllProviders)
 
-	// parse proxy group
+	// parse proxy group - two-phase approach for include-groups
+	// Phase 1: Identify groups that use include-groups
+	includeGroupsNames := make(map[string]bool)
+	for _, mapping := range groupsConfig {
+		if includeGroups, ok := mapping["include-groups"].(bool); ok && includeGroups {
+			if name, ok := mapping["name"].(string); ok {
+				includeGroupsNames[name] = true
+			}
+		}
+	}
+
+	// Phase 2: Parse groups without include-groups and without dependencies
+	var deferredGroups []map[string]any
 	for idx, mapping := range groupsConfig {
+		// Defer if this group uses include-groups
+		if includeGroups, ok := mapping["include-groups"].(bool); ok && includeGroups {
+			deferredGroups = append(deferredGroups, mapping)
+			continue
+		}
+
+		// Defer if this group references any include-groups group
+		needsDefer := false
+		if proxiesList, ok := mapping["proxies"].([]any); ok {
+			for _, p := range proxiesList {
+				if pName, ok := p.(string); ok && includeGroupsNames[pName] {
+					needsDefer = true
+					break
+				}
+			}
+		}
+		if needsDefer {
+			deferredGroups = append(deferredGroups, mapping)
+			continue
+		}
+
 		group, err := outboundgroup.ParseProxyGroup(mapping, proxies, providersMap, AllProxies, AllProviders)
 		if err != nil {
 			return nil, nil, fmt.Errorf("proxy group[%d]: %w", idx, err)
+		}
+
+		groupName := group.Name()
+		if _, exist := proxies[groupName]; exist {
+			return nil, nil, fmt.Errorf("proxy group %s: the duplicate name", groupName)
+		}
+
+		proxies[groupName] = adapter.NewProxy(group)
+	}
+
+	// Phase 3: Parse deferred groups after all other groups exist
+	for idx, mapping := range deferredGroups {
+		group, err := outboundgroup.ParseProxyGroup(mapping, proxies, providersMap, AllProxies, AllProviders)
+		if err != nil {
+			return nil, nil, fmt.Errorf("proxy group[deferred %d]: %w", idx, err)
 		}
 
 		groupName := group.Name()
