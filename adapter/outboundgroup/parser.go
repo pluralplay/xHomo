@@ -106,6 +106,14 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 
 	// Process include-groups - include proxy groups matching proxies filter
 	if groupOption.IncludeGroups {
+		// First, preserve explicitly specified proxies and groups in order
+		var explicitProxies []string
+		explicitSet := make(map[string]struct{})
+		for _, name := range groupOption.Proxies {
+			explicitProxies = append(explicitProxies, name)
+			explicitSet[name] = struct{}{}
+		}
+
 		// Get all proxy groups from proxyMap
 		var allGroups []string
 		for name, proxy := range proxyMap {
@@ -144,49 +152,30 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 
 			// Apply filtering
 			var filteredGroups []string
-			groupsSet := map[string]struct{}{}
 
 			// If filter is specified, match against all groups
 			if len(filterRegs) > 0 {
 				for _, filterReg := range filterRegs {
 					for _, groupName := range allGroups {
+						// Skip already explicit ones
+						if _, ok := explicitSet[groupName]; ok {
+							continue
+						}
 						if mat, _ := filterReg.MatchString(groupName); mat {
-							if _, ok := groupsSet[groupName]; !ok {
-								groupsSet[groupName] = struct{}{}
-								filteredGroups = append(filteredGroups, groupName)
-							}
+							filteredGroups = append(filteredGroups, groupName)
 						}
 					}
 				}
 			} else {
-				// No filter - include all groups
+				// No filter - include all groups except explicit ones
 				for _, groupName := range allGroups {
-					groupsSet[groupName] = struct{}{}
-					filteredGroups = append(filteredGroups, groupName)
-				}
-			}
-
-			// Add explicitly specified groups from proxies list
-			for _, name := range groupOption.Proxies {
-				// Check if it's actually a group
-				if proxy, ok := proxyMap[name]; ok {
-					proxyType := proxy.Type()
-					isGroup := proxyType == C.Relay ||
-						proxyType == C.Selector ||
-						proxyType == C.Fallback ||
-						proxyType == C.URLTest ||
-						proxyType == C.LoadBalance
-
-					if isGroup {
-						if _, ok := groupsSet[name]; !ok {
-							groupsSet[name] = struct{}{}
-							filteredGroups = append(filteredGroups, name)
-						}
+					if _, ok := explicitSet[groupName]; !ok {
+						filteredGroups = append(filteredGroups, groupName)
 					}
 				}
 			}
 
-			// Apply exclude-filter
+			// Apply exclude-filter to filtered groups only
 			if len(excludeFilterRegs) > 0 {
 				var finalGroups []string
 				for _, groupName := range filteredGroups {
@@ -204,10 +193,17 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 				filteredGroups = finalGroups
 			}
 
-			groupOption.Proxies = filteredGroups
+			// Combine: explicit first, then filtered
+			groupOption.Proxies = append(explicitProxies, filteredGroups...)
 		} else {
-			// No filter - include all groups
-			groupOption.Proxies = allGroups
+			// No filter - explicit first, then all other groups
+			var otherGroups []string
+			for _, groupName := range allGroups {
+				if _, ok := explicitSet[groupName]; !ok {
+					otherGroups = append(otherGroups, groupName)
+				}
+			}
+			groupOption.Proxies = append(explicitProxies, otherGroups...)
 		}
 	}
 
