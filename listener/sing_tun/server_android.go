@@ -1,4 +1,4 @@
-//go:build android && !cmfa
+//go:build android
 
 package sing_tun
 
@@ -9,10 +9,9 @@ import (
 
 	"github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/features"
 	"github.com/metacubex/mihomo/log"
 
-	"github.com/metacubex/sing-tun"
+	tun "github.com/metacubex/sing-tun"
 	"github.com/sagernet/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -74,9 +73,7 @@ func findPackageName(metadata *constant.Metadata) (string, error) {
 }
 
 func init() {
-	if !features.CMFA {
-		process.DefaultPackageNameResolver = findPackageName
-	}
+	process.DefaultPackageNameResolver = findPackageName
 }
 
 func (l *Listener) openAndroidHotspot(tunOptions tun.Options) {
