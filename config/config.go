@@ -28,7 +28,7 @@ import (
 	P "github.com/metacubex/mihomo/constant/provider"
 	snifferTypes "github.com/metacubex/mihomo/constant/sniffer"
 	"github.com/metacubex/mihomo/dns"
-	L "github.com/metacubex/mihomo/listener"
+	"github.com/metacubex/mihomo/listener"
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/log"
 	R "github.com/metacubex/mihomo/rules"
@@ -653,11 +653,11 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 	config.Proxies = proxies
 	config.Providers = providers
 
-	listener, err := parseListeners(rawCfg)
+	listeners, err := parseListeners(rawCfg)
 	if err != nil {
 		return nil, err
 	}
-	config.Listeners = listener
+	config.Listeners = listeners
 
 	log.Infoln("Geodata Loader mode: %s", geodata.LoaderName())
 	log.Infoln("Geosite Matcher implementation: %s", geodata.SiteMatcherName())
@@ -957,16 +957,17 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 func parseListeners(cfg *RawConfig) (listeners map[string]C.InboundListener, err error) {
 	listeners = make(map[string]C.InboundListener)
 	for index, mapping := range cfg.Listeners {
-		listener, err := L.ParseListener(mapping)
+		inboundListener, err := listener.ParseListener(mapping)
 		if err != nil {
 			return nil, fmt.Errorf("proxy %d: %w", index, err)
 		}
 
-		if _, exist := mapping[listener.Name()]; exist {
-			return nil, fmt.Errorf("listener %s is the duplicate name", listener.Name())
+		name := inboundListener.Name()
+		if _, exist := mapping[name]; exist {
+			return nil, fmt.Errorf("listener %s is the duplicate name", name)
 		}
 
-		listeners[listener.Name()] = listener
+		listeners[name] = inboundListener
 
 	}
 	return
