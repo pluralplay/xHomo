@@ -40,6 +40,7 @@ type GroupCommonOption struct {
 	IncludeAll          bool     `group:"include-all,omitempty"`
 	IncludeAllProxies   bool     `group:"include-all-proxies,omitempty"`
 	IncludeAllProviders bool     `group:"include-all-providers,omitempty"`
+	IncludeGroups       bool     `group:"include-groups,omitempty"`
 	Hidden              bool     `group:"hidden,omitempty"`
 	Icon                string   `group:"icon,omitempty"`
 
@@ -100,6 +101,67 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 		}
 		if len(groupOption.Proxies) == 0 && len(groupOption.Use) == 0 {
 			groupOption.Proxies = []string{"COMPATIBLE"}
+		}
+	}
+
+	// Process include-groups - include proxy groups matching proxies filter
+	if groupOption.IncludeGroups {
+		// Get all proxy groups from proxyMap
+		var allGroups []string
+		for name, proxy := range proxyMap {
+			// Check if it's a proxy group by checking adapter type
+			proxyType := proxy.Type()
+			isGroup := proxyType == C.Relay ||
+				proxyType == C.Selector ||
+				proxyType == C.Fallback ||
+				proxyType == C.URLTest ||
+				proxyType == C.LoadBalance
+
+			if isGroup && name != groupName {
+				allGroups = append(allGroups, name)
+			}
+		}
+
+		// Apply filters if specified in proxies field
+		if len(groupOption.Proxies) > 0 || groupOption.Filter != "" {
+			var filterRegs []*regexp2.Regexp
+			if groupOption.Filter != "" {
+				for _, filter := range strings.Split(groupOption.Filter, "`") {
+					filterReg := regexp2.MustCompile(filter, regexp2.None)
+					filterRegs = append(filterRegs, filterReg)
+				}
+			}
+
+			var filteredGroups []string
+			for _, groupName := range allGroups {
+				matched := false
+
+				// Check explicit proxies list
+				for _, p := range groupOption.Proxies {
+					if p == groupName {
+						matched = true
+						break
+					}
+				}
+
+				// Check filter regex if no explicit match and filter exists
+				if !matched && len(filterRegs) > 0 {
+					for _, filterReg := range filterRegs {
+						if mat, _ := filterReg.MatchString(groupName); mat {
+							matched = true
+							break
+						}
+					}
+				}
+
+				if matched {
+					filteredGroups = append(filteredGroups, groupName)
+				}
+			}
+			groupOption.Proxies = filteredGroups
+		} else {
+			// No filter - include all groups
+			groupOption.Proxies = allGroups
 		}
 	}
 
