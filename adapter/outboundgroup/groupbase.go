@@ -124,7 +124,7 @@ func (gb *GroupBase) GetProxies(touch bool) []C.Proxy {
 		}
 	} else {
 		for _, pd := range gb.providers {
-			if pd.VehicleType() == P.Compatible { // compatible provider unneeded filter
+			if pd.VehicleType() == types.Compatible { // compatible provider unneeded filter
 				proxies = append(proxies, pd.Proxies()...)
 				continue
 			}
