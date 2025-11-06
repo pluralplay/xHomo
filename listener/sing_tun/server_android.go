@@ -1,4 +1,4 @@
-//go:build android && !cmfa
+//go:build android
 
 package sing_tun
 
@@ -74,9 +74,7 @@ func findPackageName(metadata *constant.Metadata) (string, error) {
 }
 
 func init() {
-	if !features.CMFA {
-		process.DefaultPackageNameResolver = findPackageName
-	}
+	process.DefaultPackageNameResolver = findPackageName
 }
 
 func (l *Listener) openAndroidHotspot(tunOptions tun.Options) {

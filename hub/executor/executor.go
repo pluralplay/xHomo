@@ -105,8 +105,8 @@ func ApplyConfig(cfg *config.Config, force bool) {
 	updateGeneral(cfg.General, true)
 	updateNTP(cfg.NTP)
 	updateDNS(cfg.DNS, cfg.General.IPv6)
-	updateListeners(cfg.General, cfg.Listeners, force)
-	updateTun(cfg.General) // tun should not care "force"
+	//updateListeners(cfg.General, cfg.Listeners, force)
+	//updateTun(cfg.General) // tun should not care "force"
 	updateIPTables(cfg)
 	updateTunnels(cfg.Tunnels)
 
@@ -324,12 +324,16 @@ func loadProvider[P provider.Provider](providers map[string]P) {
 			switch pv.Type() {
 			case provider.Proxy:
 				{
-					log.Errorln("initial proxy provider %s error: %v", name, err)
+					log.Warnln("initial proxy provider %s error: %v", name, err)
 				}
 			case provider.Rule:
 				{
-					log.Errorln("initial rule provider %s error: %v", name, err)
+					log.Warnln("initial rule provider %s error: %v", name, err)
 				}
+			}
+		} else {
+			if DefaultProviderLoadedHook != nil {
+				DefaultProviderLoadedHook(name)
 			}
 		}
 	}
@@ -345,7 +349,6 @@ func loadProvider[P provider.Provider](providers map[string]P) {
 			load(pv)
 		}()
 	}
-	wg.Wait()
 }
 
 func updateSniffer(snifferConfig *sniffer.Config) {
