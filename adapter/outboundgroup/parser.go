@@ -122,8 +122,9 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 			}
 		}
 
-		// Apply filters if specified in proxies field
-		if len(groupOption.Proxies) > 0 || groupOption.Filter != "" {
+		// Apply filters if specified
+		if groupOption.Filter != "" || groupOption.ExcludeFilter != "" {
+			// Compile filter regexes
 			var filterRegs []*regexp2.Regexp
 			if groupOption.Filter != "" {
 				for _, filter := range strings.Split(groupOption.Filter, "`") {
@@ -132,32 +133,77 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 				}
 			}
 
-			var filteredGroups []string
-			for _, groupName := range allGroups {
-				matched := false
-
-				// Check explicit proxies list
-				for _, p := range groupOption.Proxies {
-					if p == groupName {
-						matched = true
-						break
-					}
+			// Compile exclude-filter regexes
+			var excludeFilterRegs []*regexp2.Regexp
+			if groupOption.ExcludeFilter != "" {
+				for _, excludeFilter := range strings.Split(groupOption.ExcludeFilter, "`") {
+					excludeFilterReg := regexp2.MustCompile(excludeFilter, regexp2.None)
+					excludeFilterRegs = append(excludeFilterRegs, excludeFilterReg)
 				}
+			}
 
-				// Check filter regex if no explicit match and filter exists
-				if !matched && len(filterRegs) > 0 {
-					for _, filterReg := range filterRegs {
+			// Apply filtering
+			var filteredGroups []string
+			groupsSet := map[string]struct{}{}
+
+			// If filter is specified, match against all groups
+			if len(filterRegs) > 0 {
+				for _, filterReg := range filterRegs {
+					for _, groupName := range allGroups {
 						if mat, _ := filterReg.MatchString(groupName); mat {
-							matched = true
-							break
+							if _, ok := groupsSet[groupName]; !ok {
+								groupsSet[groupName] = struct{}{}
+								filteredGroups = append(filteredGroups, groupName)
+							}
 						}
 					}
 				}
-
-				if matched {
+			} else {
+				// No filter - include all groups
+				for _, groupName := range allGroups {
+					groupsSet[groupName] = struct{}{}
 					filteredGroups = append(filteredGroups, groupName)
 				}
 			}
+
+			// Add explicitly specified groups from proxies list
+			for _, name := range groupOption.Proxies {
+				// Check if it's actually a group
+				if proxy, ok := proxyMap[name]; ok {
+					proxyType := proxy.Type()
+					isGroup := proxyType == C.Relay ||
+						proxyType == C.Selector ||
+						proxyType == C.Fallback ||
+						proxyType == C.URLTest ||
+						proxyType == C.LoadBalance
+
+					if isGroup {
+						if _, ok := groupsSet[name]; !ok {
+							groupsSet[name] = struct{}{}
+							filteredGroups = append(filteredGroups, name)
+						}
+					}
+				}
+			}
+
+			// Apply exclude-filter
+			if len(excludeFilterRegs) > 0 {
+				var finalGroups []string
+				for _, groupName := range filteredGroups {
+					excluded := false
+					for _, excludeReg := range excludeFilterRegs {
+						if mat, _ := excludeReg.MatchString(groupName); mat {
+							excluded = true
+							break
+						}
+					}
+					if !excluded {
+						finalGroups = append(finalGroups, groupName)
+					}
+				}
+				filteredGroups = finalGroups
+			}
+
 			groupOption.Proxies = filteredGroups
 		} else {
 			// No filter - include all groups
