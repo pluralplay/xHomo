@@ -17,7 +17,7 @@ import (
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/component/loopback"
 	"github.com/metacubex/mihomo/component/nat"
-	P "github.com/metacubex/mihomo/component/process"
+	"github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/component/slowdown"
 	"github.com/metacubex/mihomo/component/sniffer"
@@ -59,7 +59,7 @@ var (
 	// default timeout for UDP session
 	udpTimeout = 60 * time.Second
 
-	findProcessMode = atomic.NewInt32Enum(P.FindProcessStrict)
+	findProcessMode = atomic.NewInt32Enum(process.FindProcessStrict)
 
 	snifferDispatcher *sniffer.Dispatcher
 	sniffingEnable    = false
@@ -263,13 +263,13 @@ func SetMode(m TunnelMode) {
 	mode = m
 }
 
-func FindProcessMode() P.FindProcessMode {
+func FindProcessMode() process.FindProcessMode {
 	return findProcessMode.Load()
 }
 
 // SetFindProcessMode replace SetAlwaysFindProcess
 // always find process info if legacyAlways = true or mode.Always() = true, may be increase many memory
-func SetFindProcessMode(mode P.FindProcessMode) {
+func SetFindProcessMode(mode process.FindProcessMode) {
 	findProcessMode.Store(mode)
 }
 
@@ -358,7 +358,7 @@ func resolveMetadata(metadata *C.Metadata) (proxy C.Proxy, rule C.Rule, err erro
 				attemptProcessLookup = false
 				if !features.CMFA {
 					// normal check for process
-					uid, path, err := P.FindProcessName(metadata.NetWork.String(), metadata.SrcIP, int(metadata.SrcPort))
+					uid, path, err := process.FindProcessName(metadata.NetWork.String(), metadata.SrcIP, int(metadata.SrcPort))
 					if err != nil {
 						log.Debugln("[Process] find process error for %s: %v", metadata.String(), err)
 					} else {
@@ -366,13 +366,13 @@ func resolveMetadata(metadata *C.Metadata) (proxy C.Proxy, rule C.Rule, err erro
 						metadata.ProcessPath = path
 						metadata.Uid = uid
 
-						if pkg, err := P.FindPackageName(metadata); err == nil { // for android (not CMFA) package names
+						if pkg, err := process.FindPackageName(metadata); err == nil { // for android (not CMFA) package names
 							metadata.Process = pkg
 						}
 					}
 				} else {
 					// check package names
-					pkg, err := P.FindPackageName(metadata)
+					pkg, err := process.FindPackageName(metadata)
 					if err != nil {
 						log.Debugln("[Process] find process error for %s: %v", metadata.String(), err)
 					} else {
@@ -384,10 +384,10 @@ func resolveMetadata(metadata *C.Metadata) (proxy C.Proxy, rule C.Rule, err erro
 	}
 
 	switch FindProcessMode() {
-	case P.FindProcessAlways:
+	case process.FindProcessAlways:
 		helper.FindProcess()
 		helper.FindProcess = nil
-	case P.FindProcessOff:
+	case process.FindProcessOff:
 		helper.FindProcess = nil
 	}
 
