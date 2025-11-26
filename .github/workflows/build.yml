@@ -423,56 +423,56 @@ jobs:
           generate_release_notes: true
           body_path: release.txt
 
-  Upload-Release:
-    permissions: write-all
-    if: ${{ github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') }}
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          ref: Meta
-          fetch-depth: "0"
-          fetch-tags: "true"
+  # Upload-Release:
+  #   permissions: write-all
+  #   if: ${{ github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') }}
+  #   needs: [build]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v5
+  #       with:
+  #         ref: Meta
+  #         fetch-depth: "0"
+  #         fetch-tags: "true"
 
-      - name: Get tags
-        run: |
-          echo "CURRENTVERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          git fetch --tags
-          echo "PREVERSION=$(git describe --tags --abbrev=0 HEAD^)" >> $GITHUB_ENV
+  #     - name: Get tags
+  #       run: |
+  #         echo "CURRENTVERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+  #         git fetch --tags
+  #         echo "PREVERSION=$(git describe --tags --abbrev=0 HEAD^)" >> $GITHUB_ENV
 
-      - name: Force push Alpha branch to Meta
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git fetch origin Alpha:Alpha
-          git push origin Alpha:Meta --force
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Force push Alpha branch to Meta
+  #       run: |
+  #         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+  #         git config --global user.name "github-actions[bot]"
+  #         git fetch origin Alpha:Alpha
+  #         git push origin Alpha:Meta --force
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate release notes
-        run: |
-          cp ./.github/genReleaseNote.sh ./
-          bash ./genReleaseNote.sh -v ${PREVERSION}...${CURRENTVERSION}
-          rm ./genReleaseNote.sh
+  #     - name: Generate release notes
+  #       run: |
+  #         cp ./.github/genReleaseNote.sh ./
+  #         bash ./genReleaseNote.sh -v ${PREVERSION}...${CURRENTVERSION}
+  #         rm ./genReleaseNote.sh
 
-      - uses: actions/download-artifact@v4
-        with:
-          path: bin/
-          merge-multiple: true
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         path: bin/
+  #         merge-multiple: true
 
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: bin
+  #     - name: Display structure of downloaded files
+  #       run: ls -R
+  #       working-directory: bin
 
-      - name: Upload Release
-        uses: softprops/action-gh-release@v2
-        if: ${{ success() }}
-        with:
-          tag_name: ${GITHUB_REF_NAME}
-          files: bin/*
-          body_path: release.md
+  #     - name: Upload Release
+  #       uses: softprops/action-gh-release@v2
+  #       if: ${{ success() }}
+  #       with:
+  #         tag_name: ${GITHUB_REF_NAME}
+  #         files: bin/*
+  #         body_path: release.md
 
   # Docker:
   #   if: ${{ !startsWith(github.event_name, 'pull_request') }}
