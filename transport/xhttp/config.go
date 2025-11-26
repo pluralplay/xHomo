@@ -175,7 +175,7 @@ type XmuxConfig struct {
 	CMaxReuseTimes   Range `proxy:"c-max-reuse-times" json:"c-max-reuse-times"`
 	HMaxRequestTimes Range `proxy:"h-max-request-times" json:"h-max-request-times"`
 	HMaxReusableSecs Range `proxy:"h-max-reusable-secs" json:"h-max-reusable-secs"`
-	HKeepAlivePeriod int   `proxy:"h-keep-alive-period" json:"h-keep-alive-period"`
+	HKeepAlivePeriod int64 `proxy:"h-keep-alive-period" json:"h-keep-alive-period"`
 }
 
 func (x *XmuxConfig) clone() *XmuxConfig {
