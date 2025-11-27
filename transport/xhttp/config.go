@@ -18,7 +18,6 @@ type Config struct {
 	Headers              map[string]string `proxy:"headers" json:"headers"`
 	NoGRPCHeader         bool              `proxy:"no-grpc-header" json:"no-grpc-header"`
 	NoSSEHeader          bool              `proxy:"no-sse-header" json:"no-sse-header"`
-	HTTPVersion          string            `proxy:"http-version" json:"http-version"`
 	XPaddingBytes        Range             `proxy:"x-padding-bytes" json:"x-padding-bytes"`
 	ScMaxEachPostBytes   Range             `proxy:"sc-max-each-post-bytes" json:"sc-max-each-post-bytes"`
 	ScMinPostsIntervalMs Range             `proxy:"sc-min-posts-interval-ms" json:"sc-min-posts-interval-ms"`
@@ -29,11 +28,11 @@ type Config struct {
 	internalTLS *tls.Config `json:"-"`
 }
 
-func (c *Config) EnsureHTTP3TLS(fallbackHost string, skipVerify bool) {
+func (c *Config) EnsureHTTP3TLS(fallbackHost string, skipVerify bool, httpVersion string) {
 	if c == nil {
 		return
 	}
-	if c.HTTPVersion == "3" {
+	if httpVersion == "3" {
 		host := c.Host
 		if host == "" {
 			host = fallbackHost
@@ -47,7 +46,7 @@ func (c *Config) EnsureHTTP3TLS(fallbackHost string, skipVerify bool) {
 		c.internalTLS = tlsCfg
 	}
 	if c.Download != nil {
-		c.Download.EnsureHTTP3TLS(fallbackHost, skipVerify)
+		c.Download.EnsureHTTP3TLS(fallbackHost, skipVerify, httpVersion)
 	}
 }
 
@@ -134,24 +133,6 @@ func (c *Config) validate() error {
 		return fmt.Errorf("xhttp host should not include scheme")
 	}
 	return nil
-}
-
-func (c *Config) httpVersion(defaultSecure bool) string {
-	switch c.HTTPVersion {
-	case "", "auto":
-		if defaultSecure {
-			return "2"
-		}
-		return "1.1"
-	case "1", "1.1", "h1":
-		return "1.1"
-	case "2", "h2":
-		return "2"
-	case "3", "h3":
-		return "3"
-	default:
-		return "1.1"
-	}
 }
 
 func (c *Config) internalTLSConfig() *tls.Config {

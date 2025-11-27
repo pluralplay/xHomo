@@ -144,9 +144,9 @@ func prepareEndpoint(cfg *Config, opts Options, sessionID string, isDownload boo
 		host = "127.0.0.1"
 	}
 
-	httpVersion := cfg.httpVersion(scheme == "https")
-	if opts.HTTPVersion != "" {
-		httpVersion = opts.HTTPVersion
+	httpVersion := opts.HTTPVersion
+	if httpVersion == "" {
+		httpVersion = "1.1"
 	}
 	if httpVersion == "3" {
 		scheme = "https"
