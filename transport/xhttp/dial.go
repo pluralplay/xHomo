@@ -455,8 +455,8 @@ func newHTTPClient(httpVersion string, dial DialFunc, keepAlive time.Duration, t
 		return &http.Client{Transport: transport}, transport, nil
 	case "2":
 		transport := &http2.Transport{
-			DialTLSContext: func(ctx context.Context, network, addr string, _ *stdtls.Config) (net.Conn, error) {
-				return dial(ctx, "tcp")
+			DialTLS: func(network, addr string, _ *stdtls.Config) (net.Conn, error) {
+				return dial(context.Background(), "tcp")
 			},
 			IdleConnTimeout: keepAlive,
 			ReadIdleTimeout: keepAlive,
