@@ -24,6 +24,30 @@ import (
 	"golang.org/x/net/http2"
 )
 
+type withoutCancelCtx struct {
+	context.Context
+}
+
+func (withoutCancelCtx) Deadline() (deadline time.Time, ok bool) {
+	return time.Time{}, false
+}
+
+func (withoutCancelCtx) Done() <-chan struct{} {
+	return nil
+}
+
+func (withoutCancelCtx) Err() error {
+	return nil
+}
+
+// This matches the behavior of context.WithoutCancel from Go 1.21+.
+func withoutCancel(parent context.Context) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return withoutCancelCtx{parent}
+}
+
 // DialFunc dials the remote endpoint using the provided network (e.g. "tcp" or "udp").
 type DialFunc func(ctx context.Context, network string) (net.Conn, error)
 
@@ -229,7 +253,7 @@ func dialStreamOne(ctx context.Context, cancel context.CancelFunc, ep *endpoint)
 }
 
 func dialStreamUp(ctx context.Context, cancel context.CancelFunc, uploadEP, downloadEP *endpoint) (net.Conn, error) {
-	downloadCtx := context.WithoutCancel(ctx)
+	downloadCtx := withoutCancel(ctx)
 	downloadReq, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, downloadEP.url.String(), nil)
 	if err != nil {
 		return nil, err
@@ -282,7 +306,7 @@ func dialStreamUp(ctx context.Context, cancel context.CancelFunc, uploadEP, down
 }
 
 func dialPacketUp(ctx context.Context, cancel context.CancelFunc, uploadEP, downloadEP *endpoint) (net.Conn, error) {
-	downloadCtx := context.WithoutCancel(ctx)
+	downloadCtx := withoutCancel(ctx)
 	downloadReq, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, downloadEP.url.String(), nil)
 	if err != nil {
 		return nil, err
