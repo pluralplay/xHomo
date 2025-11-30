@@ -213,8 +213,12 @@ func (x *XmuxConfig) normalized() normalizedXmux {
 	if !x.HMaxReusableSecs.IsZero() {
 		n.reusableRange = x.HMaxReusableSecs
 	}
-	if x.HKeepAlivePeriod > 0 {
-		n.keepAlive = time.Duration(x.HKeepAlivePeriod) * time.Second
+	if x.HKeepAlivePeriod != 0 {
+		if x.HKeepAlivePeriod < 0 {
+			n.keepAlive = 0
+		} else {
+			n.keepAlive = time.Duration(x.HKeepAlivePeriod) * time.Second
+		}
 	}
 	return n
 }

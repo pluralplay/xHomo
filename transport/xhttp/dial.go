@@ -402,6 +402,13 @@ func applyHeaders(req *http.Request, cfg *Config, baseURL *url.URL) {
 	}
 	req.Host = baseURL.Host
 	req.Header.Set("Referer", withPadding(baseURL.String(), int(cfg.XPaddingBytes.Random())))
+
+	q := req.URL.Query()
+	if !cfg.ScStreamUpServerSecs.IsZero() {
+		q.Set("sc_stream_up_server_secs", fmt.Sprintf("%d", cfg.ScStreamUpServerSecs.Random()))
+	}
+	req.URL.RawQuery = q.Encode()
+
 	if req.Method == http.MethodPost && !cfg.NoGRPCHeader {
 		req.Header.Set("Content-Type", "application/grpc")
 	}
@@ -439,9 +446,6 @@ func doRequest(client *http.Client, req *http.Request) (*http.Response, net.Addr
 }
 
 func newHTTPClient(httpVersion string, dial DialFunc, keepAlive time.Duration, tlsCfg *tls.Config, host string) (*http.Client, http.RoundTripper, error) {
-	if keepAlive <= 0 {
-		keepAlive = 30 * time.Second
-	}
 	switch httpVersion {
 	case "3":
 		if tlsCfg == nil {
