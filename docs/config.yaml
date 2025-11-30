@@ -1155,6 +1155,25 @@ proxy-groups:
       - Proxy
       - DIRECT
 
+  # Include proxy groups instead of individual proxies
+  # include-groups: true will include other proxy groups (not individual proxies) defined above this group
+  - name: IncludeAllGroups
+    type: select
+    include-groups: true # Include all proxy groups defined before this group
+
+  - name: IncludeFilteredGroups
+    type: select
+    include-groups: true # Include only proxy groups matching the filter
+    filter: "auto|fallback" # Regex filter to match group names (e.g., includes "auto" and "fallback-auto" groups)
+
+  - name: IncludeExplicitGroups
+    type: select
+    include-groups: true # Include only explicitly specified proxy groups
+    proxies:
+      - Proxy # Reference to a group defined above
+      - auto # Reference to a group defined above
+      # Note: Self-reference is automatically excluded to prevent circular dependencies
+
 # Mihomo 格式的节点或支持 *ray 的分享格式
 proxy-providers:
   provider1:
