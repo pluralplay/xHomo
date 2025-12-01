@@ -98,8 +98,6 @@ jobs:
           echo "🩹 Applying patch..."
           if git apply --check /tmp/flclash.patch 2>/dev/null; then
             git apply /tmp/flclash.patch
-            git add .
-            git commit -m "feat: init Mihomo Core ${{ steps.check_release.outputs.version }} for FlClashX"
             echo "✅ Patch applied cleanly"
           else
             echo "⚠️ Patch cannot be applied cleanly, trying 3-way merge..."
@@ -108,16 +106,29 @@ jobs:
             # Check if there are conflicts
             if git diff --quiet && git diff --cached --quiet; then
               echo "ℹ️ No changes from patch (already applied)"
-            elif git diff --check 2>/dev/null; then
-              git add .
-              git commit -m "feat: init Mihomo Core ${{ steps.check_release.outputs.version }} for FlClashX"
-              echo "✅ Patch applied with 3-way merge"
-            else
+            elif ! git diff --check 2>/dev/null; then
               echo "::error::❌ Patch application has conflicts. Manual intervention required."
               git status
               exit 1
             fi
+            echo "✅ Patch applied with 3-way merge"
           fi
+          
+          echo ""
+          echo "📝 Updating constant/version.go..."
+          VERSION="${{ steps.check_release.outputs.version }}"
+          BUILD_TIME=$(date -u "+%Y-%m-%d %H:%M:%S UTC")
+          echo "   Version: $VERSION"
+          echo "   BuildTime: $BUILD_TIME"
+          
+          sed -i "s/Version    = \".*\"/Version    = \"$VERSION\"/" constant/version.go
+          sed -i "s/BuildTime  = \".*\"/BuildTime  = \"$BUILD_TIME\"/" constant/version.go
+          
+          echo ""
+          echo "📦 Committing all changes..."
+          git add .
+          git commit -m "feat: init Mihomo Core ${{ steps.check_release.outputs.version }} for FlClashX"
+          echo "✅ All changes committed"
 
       - name: Push changes
         if: steps.check_release.outputs.should_sync == 'true'
