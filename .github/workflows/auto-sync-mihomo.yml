@@ -1,0 +1,142 @@
+name: Auto Sync Core with Patch (Protected)
+
+on:
+  schedule:
+    - cron: '59 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-and-patch:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check for new releases in last 24 hours
+        id: check_release
+        run: |
+          RELEASE_DATA=$(curl -s "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest")
+          PUBLISHED_AT=$(echo "$RELEASE_DATA" | jq -r '.published_at')
+          TAG_NAME=$(echo "$RELEASE_DATA" | jq -r '.tag_name')
+          
+          echo "Latest release: $TAG_NAME"
+          echo "Published at: $PUBLISHED_AT"
+          
+          RELEASE_TIMESTAMP=$(date -d "$PUBLISHED_AT" +%s)
+          CURRENT_TIMESTAMP=$(date +%s)
+          TIME_DIFF=$((CURRENT_TIMESTAMP - RELEASE_TIMESTAMP))
+          HOURS_DIFF=$((TIME_DIFF / 3600))
+          
+          echo "Hours since release: $HOURS_DIFF"
+          
+          if [ $HOURS_DIFF -le 24 ]; then
+            echo "New release detected within 24 hours!"
+            echo "should_sync=true" >> $GITHUB_OUTPUT
+            echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+          else
+            echo "No new release in last 24 hours"
+            echo "should_sync=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout FlClashX branch
+        if: steps.check_release.outputs.should_sync == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: FlClashX
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        if: steps.check_release.outputs.should_sync == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Backup workflows directory
+        if: steps.check_release.outputs.should_sync == 'true'
+        run: |
+          echo "📦 Backing up .github/workflows directory..."
+          mkdir -p /tmp/workflows-backup
+          if [ -d ".github/workflows" ]; then
+            cp -r .github/workflows/* /tmp/workflows-backup/ || true
+            ls -la /tmp/workflows-backup/
+          fi
+
+      - name: Add upstream and sync Meta branch
+        if: steps.check_release.outputs.should_sync == 'true'
+        run: |
+          git remote add upstream https://github.com/MetaCubeX/mihomo.git
+          git fetch upstream
+          
+          git checkout Meta || git checkout -b Meta upstream/Meta
+          git pull upstream Meta --rebase
+          git push origin Meta --force-with-lease
+
+      - name: Sync FlClashX with Meta
+        if: steps.check_release.outputs.should_sync == 'true'
+        run: |
+          git checkout FlClashX
+          echo "🔄 Merging Meta into FlClashX..."
+          git merge Meta -m "chore: sync with Meta ${{ steps.check_release.outputs.version }}"
+
+      - name: Restore workflows directory
+        if: steps.check_release.outputs.should_sync == 'true'
+        run: |
+          echo "📥 Restoring .github/workflows directory..."
+          mkdir -p .github/workflows
+          if [ -d "/tmp/workflows-backup" ] && [ "$(ls -A /tmp/workflows-backup)" ]; then
+            cp -r /tmp/workflows-backup/* .github/workflows/
+            git add .github/workflows
+            git commit -m "chore: restore workflows after Meta sync" || echo "No changes to commit"
+          fi
+          
+      - name: Apply chen08209 patch
+        if: steps.check_release.outputs.should_sync == 'true'
+        run: |
+          echo "🩹 Downloading FlClash patch..."
+          curl -L "https://github.com/chen08209/Clash.Meta/commit/e0cf7fb4e641741592e87890be8427594932535e.patch" \
+            -o /tmp/flclash.patch
+          
+          echo "🩹 Applying patch..."
+          if git apply --check /tmp/flclash.patch 2>/dev/null; then
+            git apply /tmp/flclash.patch
+            git add .
+            git commit -m "feat: init Mihomo Core ${{ steps.check_release.outputs.version }} for FlClashX"
+            echo "✅ Patch applied cleanly"
+          else
+            echo "⚠️ Patch cannot be applied cleanly, trying 3-way merge..."
+            git apply --3way /tmp/flclash.patch || true
+            
+            # Check if there are conflicts
+            if git diff --quiet && git diff --cached --quiet; then
+              echo "ℹ️ No changes from patch (already applied)"
+            elif git diff --check 2>/dev/null; then
+              git add .
+              git commit -m "feat: init Mihomo Core ${{ steps.check_release.outputs.version }} for FlClashX"
+              echo "✅ Patch applied with 3-way merge"
+            else
+              echo "::error::❌ Patch application has conflicts. Manual intervention required."
+              git status
+              exit 1
+            fi
+          fi
+
+      - name: Push changes
+        if: steps.check_release.outputs.should_sync == 'true'
+        run: |
+          echo "📤 Pushing changes to origin/FlClashX..."
+          git push origin FlClashX
+          echo "✅ Push completed"
+
+      - name: Summary
+        if: success() && steps.check_release.outputs.should_sync == 'true'
+        run: |
+          echo ""
+          echo "=================================="
+          echo "✅ Sync Complete!"
+          echo "=================================="
+          echo ""
+          echo "Version: ${{ steps.check_release.outputs.version }}"
+          echo "Branch:  FlClashX"
+          echo ""
+          echo "Recent commits:"
+          git log -3 --oneline --decorate
+          echo ""
