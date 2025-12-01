@@ -86,7 +86,7 @@ jobs:
           if git apply --check /tmp/flclash.patch 2>/dev/null; then
             git apply /tmp/flclash.patch
             git add .
-            git commit -m "feat: init FlClash Core ${{ steps.check_release.outputs.version }}"
+            git commit -m "feat: init FlClashX Core ${{ steps.check_release.outputs.version }}"
           else
             echo "Patch cannot be applied cleanly, trying 3-way merge..."
             git apply --3way /tmp/flclash.patch || true
@@ -94,7 +94,7 @@ jobs:
             # Check for conflicts
             if git diff --check; then
               git add .
-              git commit -m "feat: init FlClash Core ${{ steps.check_release.outputs.version }}"
+              git commit -m "feat: init FlClashX Core ${{ steps.check_release.outputs.version }}"
             else
               echo "::warning::Patch application has conflicts. Manual intervention required."
               exit 1
