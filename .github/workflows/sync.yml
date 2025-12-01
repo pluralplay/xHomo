@@ -46,7 +46,7 @@ jobs:
         if: steps.check_release.outputs.should_sync == 'true'
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/mihomo  # Your fork
+          repository: ${{ github.repository_owner }}/xHomo  # Your fork
           ref: FlClashX
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
