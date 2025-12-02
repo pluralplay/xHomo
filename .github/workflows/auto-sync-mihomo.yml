@@ -117,11 +117,12 @@ jobs:
           echo ""
           echo "📝 Updating constant/version.go..."
           VERSION="${{ steps.check_release.outputs.version }}"
+          VERSION_SEPARATE="${VERSION#v}"
           BUILD_TIME=$(date -u "+%Y-%m-%d %H:%M:%S UTC")
-          echo "   Version: $VERSION"
+          echo "   Version: $VERSION_SEPARATE"
           echo "   BuildTime: $BUILD_TIME"
           
-          sed -i "s/Version    = \".*\"/Version    = \"$VERSION\"/" constant/version.go
+          sed -i "s/Version    = \".*\"/Version    = \"$VERSION_SEPARATE\"/" constant/version.go
           sed -i "s/BuildTime  = \".*\"/BuildTime  = \"$BUILD_TIME\"/" constant/version.go
           
           echo ""
