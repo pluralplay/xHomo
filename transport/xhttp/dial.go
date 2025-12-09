@@ -268,8 +268,11 @@ func dialStreamUp(ctx context.Context, cancel context.CancelFunc, uploadEP, down
 		return nil, err
 	}
 
+	// For upload to ensure it can complete even if the parent
+	// context is cancelled (e.g. during graceful shutdown)
+	uploadCtx := withoutCancel(ctx)
 	pr, pw := io.Pipe()
-	uploadReq, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadEP.url.String(), pr)
+	uploadReq, err := http.NewRequestWithContext(uploadCtx, http.MethodPost, uploadEP.url.String(), pr)
 	if err != nil {
 		_ = downloadResp.Body.Close()
 		return nil, err
@@ -279,14 +282,20 @@ func dialStreamUp(ctx context.Context, cancel context.CancelFunc, uploadEP, down
 		uploadReq.Header.Del("Content-Type")
 	}
 
+	uploadDone := make(chan error, 1)
+
 	go func() {
 		resp, err := uploadEP.client.Do(uploadReq)
 		if err != nil {
+			_ = downloadResp.Body.Close()
 			pr.CloseWithError(err)
+			uploadDone <- err
 			return
 		}
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
+		_ = downloadResp.Body.Close()
+		uploadDone <- nil
 	}()
 
 	conn := &splitConn{
@@ -298,6 +307,10 @@ func dialStreamUp(ctx context.Context, cancel context.CancelFunc, uploadEP, down
 			cancel()
 			_ = pw.Close()
 			_ = downloadResp.Body.Close()
+			select {
+			case <-uploadDone:
+			case <-time.After(5 * time.Second):
+			}
 			uploadEP.release()
 			downloadEP.release()
 		},
@@ -322,6 +335,9 @@ func dialPacketUp(ctx context.Context, cancel context.CancelFunc, uploadEP, down
 	}
 
 	pr, pw := io.Pipe()
+
+	uploadDone := make(chan error, 1)
+
 	conn := &splitConn{
 		reader: downloadResp.Body,
 		writer: &pipeWriter{PipeWriter: pw},
@@ -331,17 +347,24 @@ func dialPacketUp(ctx context.Context, cancel context.CancelFunc, uploadEP, down
 			cancel()
 			_ = pw.Close()
 			_ = downloadResp.Body.Close()
+			select {
+			case <-uploadDone:
+			case <-time.After(5 * time.Second):
+			}
 			uploadEP.release()
 			downloadEP.release()
 		},
 	}
 
-	go handleUploads(ctx, uploadEP, pr)
+	go func() {
+		err := handleUploads(ctx, uploadEP, pr, downloadResp.Body)
+		uploadDone <- err
+	}()
 
 	return conn, nil
 }
 
-func handleUploads(ctx context.Context, ep *endpoint, reader *io.PipeReader) {
+func handleUploads(ctx context.Context, ep *endpoint, reader *io.PipeReader, downloadBody io.ReadCloser) error {
 	defer reader.Close()
 	maxPostBytes := int(ep.cfg.ScMaxEachPostBytes.Random())
 	if maxPostBytes <= 0 {
@@ -359,8 +382,9 @@ func handleUploads(ctx context.Context, ep *endpoint, reader *io.PipeReader) {
 			urlCopy.Path = fmt.Sprintf("%s/%d", basePath, seq)
 			req, reqErr := http.NewRequestWithContext(ctx, http.MethodPost, urlCopy.String(), bytes.NewReader(buf[:n]))
 			if reqErr != nil {
+				_ = downloadBody.Close()
 				reader.CloseWithError(reqErr)
-				return
+				return reqErr
 			}
 			applyHeaders(req, ep.cfg, ep.url)
 			if ep.cfg.NoGRPCHeader {
@@ -368,8 +392,9 @@ func handleUploads(ctx context.Context, ep *endpoint, reader *io.PipeReader) {
 			}
 			resp, reqErr := ep.client.Do(req)
 			if reqErr != nil {
+				_ = downloadBody.Close()
 				reader.CloseWithError(reqErr)
-				return
+				return reqErr
 			}
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
@@ -380,15 +405,16 @@ func handleUploads(ctx context.Context, ep *endpoint, reader *io.PipeReader) {
 				case <-time.After(interval):
 				case <-ctx.Done():
 					reader.CloseWithError(ctx.Err())
-					return
+					return ctx.Err()
 				}
 			}
 		}
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				reader.CloseWithError(err)
+				return err
 			}
-			return
+			return nil
 		}
 	}
 }
@@ -486,8 +512,8 @@ func newHTTPClient(httpVersion string, dial DialFunc, keepAlive time.Duration, t
 		return &http.Client{Transport: transport}, transport, nil
 	case "2":
 		transport := &http2.Transport{
-			DialTLS: func(network, addr string, _ *stdtls.Config) (net.Conn, error) {
-				return dial(context.Background(), "tcp")
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *stdtls.Config) (net.Conn, error) {
+				return dial(ctx, "tcp")
 			},
 			IdleConnTimeout: keepAlive,
 			ReadIdleTimeout: keepAlive,
