@@ -41,6 +41,7 @@ const (
 	MIERU
 	INNER
 	XHTTP
+	SUDOKU
 )
 
 type AddrType byte
@@ -117,6 +118,8 @@ func (t Type) String() string {
 		return "Inner"
 	case XHTTP:
 		return "Xhttp"
+	case SUDOKU:
+		return "Sudoku"
 	default:
 		return "Unknown"
 	}
